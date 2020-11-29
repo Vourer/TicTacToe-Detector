@@ -1,5 +1,6 @@
 import numpy as np
 import cv2
+import board as brd
 
 def rearange_contours(contours):
     # sortowanie konturów względem pola, jakie pokrywają
@@ -53,10 +54,11 @@ def auto_canny(image, sigma=0.33):
     return edged
 
 
-def process_image(img_path, scale):
+def process_image(img_path, num, scale):
+    print(f"------------ IMAGE #{num+1} ------------")
+    # prygotowanie obrazu do rozpoznawania
     image = cv2.imread(img_path)
     height, width = int(image.shape[0]*scale), int(image.shape[1]*scale)
-    #print(image.shape)
     image = cv2.resize(image, (width, height))
     rgb_image = image.copy()
     gray = 255 - cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -64,51 +66,68 @@ def process_image(img_path, scale):
     image = auto_canny(image)
     k = np.ones((2,2))
     image = cv2.dilate(image, kernel=k, iterations=1)
-    #image2 = cv2.erode(image, kernel=k, iterations=1)
 
     cont_image = rgb_image.copy()  # do obrazu z konturami
     rect_image = rgb_image.copy()  # do obrazu z prostokątami
     bin_image = np.uint8((gray > 130) * 255)  # czarno-białe do sprawdzania
-    #mask = np.zeros((height, width), np.uint8)  # drugie czarno-białe, pomocnicze
-    #mask[:, :] = 255
 
     contours, hierarchy = cv2.findContours(image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     contours = rearange_contours(contours)
-    boards = 1
+
+    num_boards = 1
+    board_list = []
+    # kontury posortowane od największego do najmniejszego - pierwsze z brzegu powinny być kontury szachownic
     while True:
-        if cv2.contourArea(contours[boards]) > 0.75*cv2.contourArea(contours[boards-1]):
-            boards += 1
+        if cv2.contourArea(contours[num_boards]) > 0.75*cv2.contourArea(contours[num_boards-1]):
+            num_boards += 1
         else:
             break
+
     for i, cont in enumerate(contours):
         cv2.drawContours(cont_image, cont, -1, (0, 255, 0), 2)
-        peri = cv2.arcLength(cont, True)
-        approx = cv2.approxPolyDP(cont, 0.02*peri, True)
+        perimeter = cv2.arcLength(cont, True)
+        approx = cv2.approxPolyDP(cont, 0.02*perimeter, True)
         x, y, w, h = cv2.boundingRect(approx)
-        if i < boards:
-            cv2.rectangle(rect_image, (x,y), (x+w, y+h), (0,255,0), 2)
+        (cx, cy), radius = cv2.minEnclosingCircle(cont)
+        cx, cy = (int(cx), int(cy))
+        r = int(radius)
+
+        if i < num_boards:
+            cv2.rectangle(rect_image, (x,y), (x+w, y+h), (255,255,0), 2)
+            cv2.putText(rect_image, f'{i+1}', (x + 4, y + 3), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
+            board_list.append(brd.Board(board_img=rgb_image[y:y+h,x:x+w], center=(cx,cy), coords=(x,w,y,h)))
             continue
-        #cv2.rectangle(rect_image, (x,y), (x+w, y+h), (0,0,255), 2)
-        # wylicz średni kolor środka zaznaczenia (0.3w, 0.3h)
+
+        cv2.circle(rect_image, (cx, cy), r, (0, 255, 0), 2)
+        # wylicz średni kolor środka zaznaczenia (wymiary: 0.3h x 0.3w)
         avg = np.mean(bin_image[int(y+0.35*h):int(y+0.65*h), int(x+0.35*w):int(x+0.65*w)])
         if avg > 50:
-            cv2.putText(rect_image, "x", (x+4, y+3), cv2.FONT_HERSHEY_COMPLEX, 1, (255,255,255), 2)
+            symbol = "x"
         else:
-            cv2.putText(rect_image, "o", (x+4, y+3), cv2.FONT_HERSHEY_COMPLEX, 1, (255,255,255), 2)
+            symbol = 'o'
+        cv2.putText(rect_image, symbol, (x + 4, y + 3), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
+        for board in board_list:
+            if board.contains_cont(cx, cy):
+                board.update_cells(cx, cy, symbol)
         bin_image[int(y+0.35*h):int(y+0.65*h), int(x+0.35*w):int(x+0.65*w)] = 128
 
+    for i, b in enumerate(board_list):
+        #cv2.imshow(f'b{i}', b.image)
+        print(b, f"\nBoard #{i+1}")
+        b.check_outcome()
+
     #out = stack_images(0.5, [[cont_image, bin_image, rect_image], ])
-    out = stack_images(0.5, [[rgb_image, cont_image], [bin_image, rect_image]])
-    return out #rect_image
+    out = stack_images(0.5, [[image, cont_image], [bin_image, rect_image]])
+    return rect_image
 
 
 def main():
     img_paths = ['Images/m01.jpg', 'Images/m02.jpg',
                  'Images/s01.jpg', 'Images/s02.jpg']
     outer=[]
-    single = ['Images/s02.jpg']
+    single = ['Images/m01.jpg']
     for i, path in enumerate(single):
-        img_out = process_image(path, 0.25)
+        img_out = process_image(path, i, 0.25)
         outer.append(img_out)
         cv2.imshow(f'Output image {i+1}', img_out)
     #cv2.imshow('text', stack_images(0.7, (outer[:2],outer[2:])))
