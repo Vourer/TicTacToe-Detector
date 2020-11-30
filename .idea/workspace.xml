@@ -2,9 +2,13 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="e4919e5b-56a0-4bd5-abf5-395fd51ffd75" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/board.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/middle_cell.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Images/h02.jpg" beforeDir="false" afterPath="$PROJECT_DIR$/Images/h02.jpg" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Images/h03.jpg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Images/m02.jpg" beforeDir="false" afterPath="$PROJECT_DIR$/Images/m02.jpg" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/board.py" beforeDir="false" afterPath="$PROJECT_DIR$/board.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/kk_detector.py" beforeDir="false" afterPath="$PROJECT_DIR$/kk_detector.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -28,7 +32,7 @@
   <component name="PropertiesComponent">
     <property name="WebServerToolWindowFactoryState" value="false" />
     <property name="last_opened_file_path" value="$PROJECT_DIR$/kk_detector.py" />
-    <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
+    <property name="settings.editor.selected.configurable" value="project.propVCSSupport.Mappings" />
   </component>
   <component name="RunDashboard">
     <option name="ruleStates">
@@ -103,7 +107,9 @@
       <workItem from="1606062991252" duration="9374000" />
       <workItem from="1606137845846" duration="16797000" />
       <workItem from="1606581697556" duration="5142000" />
-      <workItem from="1606667448726" duration="13400000" />
+      <workItem from="1606667448726" duration="18012000" />
+      <workItem from="1606723997957" duration="1205000" />
+      <workItem from="1606736118751" duration="6838000" />
     </task>
     <servers />
   </component>
@@ -115,14 +121,21 @@
       <map>
         <entry key="MAIN">
           <value>
-            <State />
+            <State>
+              <option name="COLUMN_ORDER" />
+            </State>
           </value>
         </entry>
       </map>
     </option>
   </component>
+  <component name="VcsManagerConfiguration">
+    <ignored-roots>
+      <path value="$PROJECT_DIR$/KCK-TicTacToe" />
+    </ignored-roots>
+  </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/KCKkk$kk_detector.coverage" NAME="kk_detector Coverage Results" MODIFIED="1606684010560" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/KCKkk$kk_detector.coverage" NAME="kk_detector Coverage Results" MODIFIED="1606744762363" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/KCKkk$Unnamed.coverage" NAME="kk_detector Coverage Results" MODIFIED="1605902930335" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>

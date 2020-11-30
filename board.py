@@ -30,7 +30,7 @@ class Board:
 
     def check_outcome(self):
         # after each turn this function checks if game has ended and what's the outcome
-        for symbol in ['x', 'y']:
+        for symbol in ['x', 'o']:
             if self.symbol_wins(symbol):
                 print(f"{symbol.upper()} wins!")
                 return
@@ -60,4 +60,7 @@ class Board:
                 break
         self.cells[cell_id] = symbol
         # print(f"Adding {symbol} to cell {cell_id}...")
+
+    def update_middle(self, symbol):
+        self.cells[4] = symbol
 

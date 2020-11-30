@@ -1,6 +1,19 @@
 import numpy as np
 import cv2
+from more_itertools import sort_together
 import board as brd
+import middle_cell as mdc
+
+def rearange(contours, hierarchy):
+    # lepsze sortowanie konturów (razem z hieratchiami) względem pola, jakie pokrywają
+    areas = [cv2.contourArea(c) for c in contours]
+    new_cont, new_hier = sort_together([contours, hierarchy[0], areas], key_list=(2,), reverse=True)[:2]
+    for i, cont in enumerate(new_cont):
+        if cv2.contourArea(cont) < 100:
+            new_cont = new_cont[:i]
+            new_hier = new_hier[:i]
+            break
+    return new_cont, new_hier
 
 def rearange_contours(contours):
     # sortowanie konturów względem pola, jakie pokrywają
@@ -62,8 +75,8 @@ def process_image(img_path, num, scale):
     image = cv2.resize(image, (width, height))
     rgb_image = image.copy()
     gray = 255 - cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    image = cv2.GaussianBlur(gray, (5,5), sigmaX=width//300)
-    image = auto_canny(image)
+    gray = cv2.GaussianBlur(gray, (5,5), sigmaX=width//300)
+    image = auto_canny(gray)
     k = np.ones((2,2))
     image = cv2.dilate(image, kernel=k, iterations=1)
 
@@ -72,44 +85,73 @@ def process_image(img_path, num, scale):
     bin_image = np.uint8((gray > 130) * 255)  # czarno-białe do sprawdzania
 
     contours, hierarchy = cv2.findContours(image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-    contours = rearange_contours(contours)
+    contours, new_hierarchy = rearange(contours, hierarchy)
 
     num_boards = 1
     board_list = []
     # kontury posortowane od największego do najmniejszego - pierwsze z brzegu powinny być kontury szachownic
     while True:
-        if cv2.contourArea(contours[num_boards]) > 0.75*cv2.contourArea(contours[num_boards-1]):
+        if cv2.contourArea(contours[num_boards]) > 0.7 * cv2.contourArea(contours[num_boards - 1]):
             num_boards += 1
         else:
             break
 
+    # znajdywanie środkowych pól
+    middle_cells = []
+    all_contours, all_hierarchies = cv2.findContours(image, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+    all_contours, all_hierarchies = rearange(all_contours, all_hierarchies)
+    for i, acont in enumerate(all_contours):
+        # kontury środkowych pól zajmują (zwykle) największą powierzchnię, zaraz po planszach
+        # a że w tym trybie RETR każdy kontur występuje dwa razy, trzeba pominąć dwukrotną liczbę plansz
+        if 2*num_boards <= i <= 3*num_boards:
+            cv2.drawContours(cont_image, acont, -1, (255, 0, 0), 2)
+            perimeter = cv2.arcLength(acont, True)
+            approx = cv2.approxPolyDP(acont, 0.025 * perimeter, True)
+            x, y, w, h = cv2.boundingRect(approx)  # koordynaty wierzchołków prostokąta obejmującego środek
+            (cx, cy), radius = cv2.minEnclosingCircle(acont)  # współrzędne środka i promień koła obejmującego środek
+            cx, cy = (int(cx), int(cy))
+            mid = mdc.MiddleCell(bin_image[y:y+h, x:x+w], center=(cx,cy), coords=(x,w,y,h))
+            middle_cells.append(mid)
+            #cv2.imshow(f"mid #{i}", mid.image)
+
+    # obsługa plansz oraz pozostałych, zewnętrznych zaznaczeń/symboli
     for i, cont in enumerate(contours):
         cv2.drawContours(cont_image, cont, -1, (0, 255, 0), 2)
         perimeter = cv2.arcLength(cont, True)
-        approx = cv2.approxPolyDP(cont, 0.02*perimeter, True)
-        x, y, w, h = cv2.boundingRect(approx)
-        (cx, cy), radius = cv2.minEnclosingCircle(cont)
+        approx = cv2.approxPolyDP(cont, 0.025*perimeter, True)
+        x, y, w, h = cv2.boundingRect(approx)  # koordynaty wierzchołków prostokąta obejmującego zaznaczenie
+        (cx, cy), radius = cv2.minEnclosingCircle(cont)  # współrzędne środka i promień koła obejmującego zaznaczenie
         cx, cy = (int(cx), int(cy))
         r = int(radius)
 
         if i < num_boards:
+            # obrysuj i podpisz planszę
             cv2.rectangle(rect_image, (x,y), (x+w, y+h), (255,255,0), 2)
             cv2.putText(rect_image, f'{i+1}', (x + 4, y + 3), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
-            board_list.append(brd.Board(board_img=rgb_image[y:y+h,x:x+w], center=(cx,cy), coords=(x,w,y,h)))
+            new_board = brd.Board(board_img=rgb_image[y:y+h,x:x+w], center=(cx,cy), coords=(x,w,y,h))
+            board_list.append(new_board)
+            # znajdź i oznacz środkowe pole planszy
+            for mid in middle_cells:
+                cell_x, cell_y = mid.center
+                if new_board.contains_cont(cell_x, cell_y):
+                    new_board.update_middle(mid.symbol)
+                    cv2.circle(rect_image, (cell_x, cell_y), int(mid.w//2), (0, 255, 255), 2)
+                    cv2.putText(rect_image, mid.symbol, (mid.xmin + 4, mid.ymin + 3), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
+                    break
             continue
 
         cv2.circle(rect_image, (cx, cy), r, (0, 255, 0), 2)
         # wylicz średni kolor środka zaznaczenia (wymiary: 0.3h x 0.3w)
         avg = np.mean(bin_image[int(y+0.35*h):int(y+0.65*h), int(x+0.35*w):int(x+0.65*w)])
         if avg > 50:
-            symbol = "x"
+            symbol = 'x'
         else:
             symbol = 'o'
         cv2.putText(rect_image, symbol, (x + 4, y + 3), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
+        bin_image[int(y+0.35*h):int(y+0.65*h), int(x+0.35*w):int(x+0.65*w)] = 128
         for board in board_list:
             if board.contains_cont(cx, cy):
                 board.update_cells(cx, cy, symbol)
-        bin_image[int(y+0.35*h):int(y+0.65*h), int(x+0.35*w):int(x+0.65*w)] = 128
 
     for i, b in enumerate(board_list):
         #cv2.imshow(f'b{i}', b.image)
@@ -118,7 +160,7 @@ def process_image(img_path, num, scale):
 
     #out = stack_images(0.5, [[cont_image, bin_image, rect_image], ])
     out = stack_images(0.5, [[image, cont_image], [bin_image, rect_image]])
-    return rect_image
+    return out
 
 
 def main():
