@@ -8,11 +8,11 @@ class MiddleCell:
         self.symbol = self.find_symbol()
 
     def find_symbol(self):
-        avg = np.mean(self.image)
+        avg = np.mean(self.image[int(0.1*self.h):int(0.9*self.h), int(0.1*self.w):int(0.9*self.w)])
         if avg < 25:
             return '-'
         else:
             cavg = np.mean(self.image[int(0.38*self.h):int(0.62*self.h),
                                     int(0.38*self.w):int(0.62*self.w)])
-            return 'x' if cavg > 60 else 'o'
+            return 'x' if cavg > 80 else 'o'
 

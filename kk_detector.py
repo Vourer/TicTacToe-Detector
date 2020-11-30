@@ -75,8 +75,8 @@ def process_image(img_path, num, scale):
     image = cv2.resize(image, (width, height))
     rgb_image = image.copy()
     gray = 255 - cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    gray = cv2.GaussianBlur(gray, (5,5), sigmaX=width//300)
-    image = auto_canny(gray)
+    image = cv2.GaussianBlur(gray, (5,5), sigmaX=width//300)
+    image = auto_canny(image)
     k = np.ones((2,2))
     image = cv2.dilate(image, kernel=k, iterations=1)
 
@@ -103,7 +103,7 @@ def process_image(img_path, num, scale):
     for i, acont in enumerate(all_contours):
         # kontury środkowych pól zajmują (zwykle) największą powierzchnię, zaraz po planszach
         # a że w tym trybie RETR każdy kontur występuje dwa razy, trzeba pominąć dwukrotną liczbę plansz
-        if 2*num_boards <= i <= 3*num_boards:
+        if 2*num_boards <= i <= 4*num_boards:
             cv2.drawContours(cont_image, acont, -1, (255, 0, 0), 2)
             perimeter = cv2.arcLength(acont, True)
             approx = cv2.approxPolyDP(acont, 0.025 * perimeter, True)
@@ -133,24 +133,24 @@ def process_image(img_path, num, scale):
             # znajdź i oznacz środkowe pole planszy
             for mid in middle_cells:
                 cell_x, cell_y = mid.center
-                if new_board.contains_cont(cell_x, cell_y):
+                if new_board.contains_cont(cell_x, cell_y, k=0.4):
                     new_board.update_middle(mid.symbol)
                     cv2.circle(rect_image, (cell_x, cell_y), int(mid.w//2), (0, 255, 255), 2)
                     cv2.putText(rect_image, mid.symbol, (mid.xmin + 4, mid.ymin + 3), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
                     break
             continue
 
-        cv2.circle(rect_image, (cx, cy), r, (0, 255, 0), 2)
-        # wylicz średni kolor środka zaznaczenia (wymiary: 0.3h x 0.3w)
-        avg = np.mean(bin_image[int(y+0.35*h):int(y+0.65*h), int(x+0.35*w):int(x+0.65*w)])
-        if avg > 50:
-            symbol = 'x'
-        else:
-            symbol = 'o'
-        cv2.putText(rect_image, symbol, (x + 4, y + 3), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
-        bin_image[int(y+0.35*h):int(y+0.65*h), int(x+0.35*w):int(x+0.65*w)] = 128
         for board in board_list:
             if board.contains_cont(cx, cy):
+                cv2.circle(rect_image, (cx, cy), r, (0, 255, 0), 2)
+                # wylicz średni kolor środka zaznaczenia (wymiary: 0.3h x 0.3w)
+                avg = np.mean(bin_image[int(y+0.35*h):int(y+0.65*h), int(x+0.35*w):int(x+0.65*w)])
+                if avg > 60:
+                    symbol = 'x'
+                else:
+                    symbol = 'o'
+                cv2.putText(rect_image, symbol, (x + 4, y + 3), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
+                bin_image[int(y+0.35*h):int(y+0.65*h), int(x+0.35*w):int(x+0.65*w)] = 128
                 board.update_cells(cx, cy, symbol)
 
     for i, b in enumerate(board_list):
@@ -164,11 +164,12 @@ def process_image(img_path, num, scale):
 
 
 def main():
-    img_paths = ['Images/m01.jpg', 'Images/m02.jpg',
-                 'Images/s01.jpg', 'Images/s02.jpg']
+    img_paths = ['Images/k01.jpg', 'Images/k02.jpg',
+                 'Images/k03.jpg', 'Images/k04.jpg',
+                 'Images/k05.jpg', 'Images/k06.jpg']
     outer=[]
-    single = ['Images/m01.jpg']
-    for i, path in enumerate(single):
+    single = ['Images/h01.jpg']
+    for i, path in enumerate(img_paths):
         img_out = process_image(path, i, 0.25)
         outer.append(img_out)
         cv2.imshow(f'Output image {i+1}', img_out)

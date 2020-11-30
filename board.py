@@ -40,9 +40,11 @@ class Board:
             print("It's a draw.")
         return
 
-    def contains_cont(self, sym_x, sym_y):
+    def contains_cont(self, sym_x, sym_y, k=1):
         # checking if given center of contour lies within this board
-        return (self.xmin <= sym_x <= self.xmax) and (self.ymin <= sym_y <= self.ymax)
+        k /= 2
+        x, y = self.center
+        return (int(x-k*self.w) <= sym_x <= int(x+k*self.w)) and (int(y-k*self.h) <= sym_y <= int(y+k*self.h))
 
     def update_cells(self, sym_x, sym_y, symbol):
         cell_id = 0
