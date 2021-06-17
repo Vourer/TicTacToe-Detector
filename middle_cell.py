@@ -3,7 +3,7 @@ import numpy as np
 class MiddleCell:
     def __init__(self, cell_img, center, coords):
         self.image = cell_img
-        self.center = center  # (x, y) position of the center of the middle
+        self.center = center  # (x, y) pozycja środka środkowego pola
         self.xmin, self.w, self.ymin, self.h = coords
         self.symbol = self.find_symbol()
 

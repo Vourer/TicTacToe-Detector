@@ -4,6 +4,7 @@ from more_itertools import sort_together
 import board as brd
 import middle_cell as mdc
 
+
 def rearange(contours, hierarchy):
     # lepsze sortowanie konturów (razem z hieratchiami) względem pola, jakie pokrywają
     areas = [cv2.contourArea(c) for c in contours]
@@ -14,15 +15,6 @@ def rearange(contours, hierarchy):
             new_hier = new_hier[:i]
             break
     return new_cont, new_hier
-
-def rearange_contours(contours):
-    # sortowanie konturów względem pola, jakie pokrywają
-    new_contours = sorted(contours, key=lambda c: cv2.contourArea(c), reverse=True)
-    for i, cont in enumerate(new_contours):
-        if cv2.contourArea(cont) < 100:
-            new_contours = new_contours[:i]
-            break
-    return new_contours
 
 
 def stack_images(scale, img_array):
@@ -67,7 +59,7 @@ def auto_canny(image, sigma=0.33):
     return edged
 
 
-def process_image(img_path, num, scale):
+def process_image(img_path, num, scale, stacked_output=False):
     print(f"------------ IMAGE #{num+1} ------------")
     # prygotowanie obrazu do rozpoznawania
     image = cv2.imread(img_path)
@@ -75,13 +67,14 @@ def process_image(img_path, num, scale):
     image = cv2.resize(image, (width, height))
     rgb_image = image.copy()
     gray = 255 - cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    image = cv2.GaussianBlur(gray, (5,5), sigmaX=width//300)
-    image = auto_canny(image)
+    gray = cv2.GaussianBlur(gray, (5,5), sigmaX=width//300)
+    image = auto_canny(gray)
     k = np.ones((2,2))
     image = cv2.dilate(image, kernel=k, iterations=1)
 
     cont_image = rgb_image.copy()  # do obrazu z konturami
     rect_image = rgb_image.copy()  # do obrazu z prostokątami
+    board_image = rgb_image.copy()
     bin_image = np.uint8((gray > 130) * 255)  # czarno-białe do sprawdzania
 
     contours, hierarchy = cv2.findContours(image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
@@ -90,7 +83,7 @@ def process_image(img_path, num, scale):
     num_boards = 1
     board_list = []
     # kontury posortowane od największego do najmniejszego - pierwsze z brzegu powinny być kontury szachownic
-    while True:
+    while num_boards <= len(contours):
         if cv2.contourArea(contours[num_boards]) > 0.7 * cv2.contourArea(contours[num_boards - 1]):
             num_boards += 1
         else:
@@ -103,7 +96,7 @@ def process_image(img_path, num, scale):
     for i, acont in enumerate(all_contours):
         # kontury środkowych pól zajmują (zwykle) największą powierzchnię, zaraz po planszach
         # a że w tym trybie RETR każdy kontur występuje dwa razy, trzeba pominąć dwukrotną liczbę plansz
-        if 2*num_boards <= i <= 4*num_boards:
+        if 2*num_boards <= i <= 5*num_boards:
             cv2.drawContours(cont_image, acont, -1, (255, 0, 0), 2)
             perimeter = cv2.arcLength(acont, True)
             approx = cv2.approxPolyDP(acont, 0.025 * perimeter, True)
@@ -112,11 +105,12 @@ def process_image(img_path, num, scale):
             cx, cy = (int(cx), int(cy))
             mid = mdc.MiddleCell(bin_image[y:y+h, x:x+w], center=(cx,cy), coords=(x,w,y,h))
             middle_cells.append(mid)
-            #cv2.imshow(f"mid #{i}", mid.image)
 
     # obsługa plansz oraz pozostałych, zewnętrznych zaznaczeń/symboli
     for i, cont in enumerate(contours):
         cv2.drawContours(cont_image, cont, -1, (0, 255, 0), 2)
+
+        cv2.drawContours(board_image, cont, -1, (0, 255, 0), 2)
         perimeter = cv2.arcLength(cont, True)
         approx = cv2.approxPolyDP(cont, 0.025*perimeter, True)
         x, y, w, h = cv2.boundingRect(approx)  # koordynaty wierzchołków prostokąta obejmującego zaznaczenie
@@ -127,6 +121,7 @@ def process_image(img_path, num, scale):
         if i < num_boards:
             # obrysuj i podpisz planszę
             cv2.rectangle(rect_image, (x,y), (x+w, y+h), (255,255,0), 2)
+            cv2.rectangle(board_image, (x+int(0.3*w), y+int(0.3*h)), (x+int(0.7*w), y+int(0.7*h)), (255, 255, 0), 2)
             cv2.putText(rect_image, f'{i+1}', (x + 4, y + 3), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
             new_board = brd.Board(board_img=rgb_image[y:y+h,x:x+w], center=(cx,cy), coords=(x,w,y,h))
             board_list.append(new_board)
@@ -154,13 +149,13 @@ def process_image(img_path, num, scale):
                 board.update_cells(cx, cy, symbol)
 
     for i, b in enumerate(board_list):
-        #cv2.imshow(f'b{i}', b.image)
         print(b, f"\nBoard #{i+1}")
         b.check_outcome()
 
-    #out = stack_images(0.5, [[cont_image, bin_image, rect_image], ])
-    out = stack_images(0.5, [[image, cont_image], [bin_image, rect_image]])
-    return out
+    if stacked_output:
+        return stack_images(0.5, [[image, cont_image], [bin_image, rect_image]])
+    else:
+        return rect_image
 
 
 def main():
@@ -168,12 +163,11 @@ def main():
                  'Images/k03.jpg', 'Images/k04.jpg',
                  'Images/k05.jpg', 'Images/k06.jpg']
     outer=[]
-    single = ['Images/h01.jpg']
+    single = ['Images/s01.jpg']
     for i, path in enumerate(img_paths):
         img_out = process_image(path, i, 0.25)
         outer.append(img_out)
         cv2.imshow(f'Output image {i+1}', img_out)
-    #cv2.imshow('text', stack_images(0.7, (outer[:2],outer[2:])))
     cv2.waitKey(0)
 
 
